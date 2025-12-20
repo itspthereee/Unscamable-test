@@ -31,9 +31,9 @@ def get_status(score):
     if score >= 70:
         return {"status": "High Risk", "color": "#FF5252"}  # Red
     elif score >= 40:
-        return {"status": "Warning", "color": "#FFA726"}  # Yellow/Orange
+        return {"status": "Warning", "color": "#FFA726"}  # Orange
     else:
-        return {"status": "Be cautious", "color": "#66BB6A"}  # Green
+        return {"status": "Be cautious", "color": "#D4FF00"}  # Yellow-Green
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
