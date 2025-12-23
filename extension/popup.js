@@ -9,7 +9,7 @@ function getRiskLevel(score) {
 function getRiskColor(score) {
   if (score >= 70) return "#FF5252";  // Red
   if (score >= 40) return "#FFA726";  // Orange
-  return "#BEC335";  // Yellow
+  return "#9A9C49";  // Yellow
 }
 
 // Display analysis results

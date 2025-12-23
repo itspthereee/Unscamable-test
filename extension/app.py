@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import re
+import os
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Chrome extension
@@ -78,7 +79,7 @@ def get_status(score):
     elif score >= 40:
         return {"status": "Warning", "color": "#FFA726"}
     else:
-        return {"status": "Be cautious", "color": "#BEC335"}
+        return {"status": "Be cautious", "color": "#9A9C49"}
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -99,4 +100,5 @@ def analyze():
     })
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
