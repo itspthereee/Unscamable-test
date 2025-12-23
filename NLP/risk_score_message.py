@@ -1,7 +1,11 @@
 from typing import List, Tuple
 
-from Keywords import CATEGORIES
-from Regex import REGEX, REGEX_WEIGHT
+try:
+    from .scam_keywords import CATEGORIES
+    from .Regex import REGEX, REGEX_WEIGHT
+except ImportError:  # fallback when running as a loose script
+    from scam_keywords import CATEGORIES
+    from Regex import REGEX, REGEX_WEIGHT
 
 
 def _normalize(text: str) -> str:
@@ -15,7 +19,7 @@ NORMALIZED_KEYWORDS = {
 }
 
 
-def calculate_risk_score(message: str) -> Tuple[int, List[str]]:
+def calculate_message_risk_score(message: str) -> Tuple[int, List[str]]:
     """Assign a phishing risk score based on keyword and regex matches."""
     score = 0
     matched_categories: List[str] = []
@@ -33,22 +37,22 @@ def calculate_risk_score(message: str) -> Tuple[int, List[str]]:
     if REGEX["url"].search(message):
         score += REGEX_WEIGHT["url"]
         matched_categories.append("url")
-    
+
     # Money regex (strong signal)
     if REGEX["money"].search(message):
         score += REGEX_WEIGHT["money"]
-        matched_categories.append("money")  
-        
+        matched_categories.append("money")
+
     # Time pressure regex (moderate signal)
     if REGEX["time_pressure"].search(message):
         score += REGEX_WEIGHT["time_pressure"]
         matched_categories.append("time_pressure")
-    
+
     # OTP regex (strong signal)
     if REGEX["otp"].search(message):
         score += REGEX_WEIGHT["otp"]
         matched_categories.append("otp")
-        
+
     # Bonus for multiple manipulation techniques
     if len(matched_categories) >= 3:
         score += 20
@@ -56,4 +60,5 @@ def calculate_risk_score(message: str) -> Tuple[int, List[str]]:
         score += 10
 
     normalized_categories = list(dict.fromkeys(matched_categories))
-    return min(score, 100), normalized_categories
+    score = min(score, 100)
+    return score, normalized_categories
