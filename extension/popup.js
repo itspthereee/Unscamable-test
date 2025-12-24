@@ -1,8 +1,9 @@
 // Get risk level label based on score
 function getRiskLevel(score) {
-  if (score >= 70) return "High Risk";
-  if (score >= 40) return "Warning";
-  return "Be cautious";
+  if (score > 70) return "High Risk";
+  if (score > 40) return "Warning";
+  if (score > 0) return "Be cautious";
+  return "Safe";
 }
 
 // Get risk level color
