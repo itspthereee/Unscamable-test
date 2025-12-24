@@ -53,9 +53,73 @@ function displayResult(result) {
   }
 }
 
+// Helpers for resolving API base URL
+async function getStoredBaseUrl() {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage?.local?.get(['apiBaseUrl'], (data) => {
+        resolve((data?.apiBaseUrl || '').trim());
+      });
+    } catch {
+      resolve('');
+    }
+  });
+}
+
+async function resolveBaseUrl() {
+  const stored = await getStoredBaseUrl();
+  if (stored) return stored.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.API_BASE_URL && window.API_BASE_URL.trim()) {
+    return window.API_BASE_URL.trim().replace(/\/$/, '');
+  }
+  // Local fallbacks
+  return 'http://localhost:5000';
+}
+
+async function tryAnalyzeWithFallback(text, image) {
+  const primary = await resolveBaseUrl();
+  const candidates = [primary];
+  const add = (u) => { if (!candidates.includes(u)) candidates.push(u); };
+  if (!/localhost/.test(primary)) {
+    add('http://localhost:8080');
+    add('http://localhost:5000');
+  } else {
+    if (primary !== 'http://localhost:8080') add('http://localhost:8080');
+    if (primary !== 'http://localhost:5000') add('http://localhost:5000');
+  }
+
+  const payload = JSON.stringify({ text, image });
+  const headers = { 'Content-Type': 'application/json' };
+  let lastError = '';
+
+  for (const base of candidates) {
+    try {
+      const res = await fetch(`${base}/analyze`, { method: 'POST', headers, body: payload });
+      if (!res.ok) { lastError = `HTTP ${res.status}`; continue; }
+      const data = await res.json();
+      try { chrome.storage?.local?.set({ apiBaseUrl: base }, () => {}); } catch {}
+      return { data, base };
+    } catch (e) {
+      lastError = e?.message || 'Network error';
+      continue;
+    }
+  }
+  throw new Error(`All backends unreachable. Tried: ${candidates.join(', ')}. Last error: ${lastError}`);
+}
+
 // Close button handler
-document.getElementById('closeBtn').addEventListener('click', () => {
-  window.close();
+document.getElementById('closeBtn').addEventListener('click', () => { window.close(); });
+
+// Settings: allow user to set API base URL
+document.getElementById('settingsBtn').addEventListener('click', async () => {
+  const current = await getStoredBaseUrl();
+  const input = prompt('Enter API Base URL (e.g., https://<service>.a.run.app)\nLeave empty to use localhost:5000', current);
+  if (input === null) return; // cancel
+  const val = (input || '').trim();
+  chrome.storage?.local?.set({ apiBaseUrl: val }, () => {
+    const msg = val ? `Saved: ${val}` : 'Using localhost:5000';
+    alert(msg + '\nReload the popup to apply.');
+  });
 });
 
 // Main analysis logic
@@ -76,23 +140,16 @@ chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
       return;
     }
 
-    // If we got text, send to backend
+    // If we got text, send to backend (with fallback attempts)
     try {
-      const serverResponse = await fetch('http://localhost:5000/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text: response.text,
-          image: ""
-        })
-      });
-      
-      const result = await serverResponse.json();
-      displayResult(result);
+      const { data, base } = await tryAnalyzeWithFallback(response.text, "");
+      displayResult(data);
+      document.getElementById('factorsList').insertAdjacentHTML('beforeend', `<li style="color:#888">Using backend: ${base}</li>`);
     } catch (error) {
       document.getElementById('riskLevel').textContent = "Error";
-      document.getElementById('factorsList').innerHTML = '<li>Backend not running. Start Flask server on port 5000</li>';
-      console.error(error);
+      const msg = (error && error.message) ? error.message : 'Backend unreachable.';
+      document.getElementById('factorsList').innerHTML = `<li>${msg}</li><li>Click Settings to set API URL or start local server</li>`;
+      console.error('Analyze failed:', error);
     }
   });
 });
